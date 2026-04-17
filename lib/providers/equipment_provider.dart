@@ -49,6 +49,20 @@ class EquipmentProvider with ChangeNotifier {
     await fetchEquipments();
   }
 
+  Future<void> addMultipleEquipments(List<Equipment> equipments) async {
+    final WriteBatch batch = FirebaseFirestore.instance.batch();
+    
+    for (var equipment in equipments) {
+      final normalizedEquipment = equipment.copyWith(
+        status: equipment.status.trim(),
+      );
+      batch.set(_equipmentCollection.doc(normalizedEquipment.id), normalizedEquipment.toJson());
+    }
+    
+    await batch.commit();
+    await fetchEquipments();
+  }
+
   Future<void> updateEquipment(String id, Equipment updatedEquipment, {NotificationProvider? notificationProvider, String? updatedByRole}) async {
     print('DEBUG: EquipmentProvider: updateEquipment called for $id by role: $updatedByRole');
     final oldEquipment = _equipments.firstWhere((e) => e.id == id);

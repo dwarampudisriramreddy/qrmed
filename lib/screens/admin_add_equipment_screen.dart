@@ -29,6 +29,7 @@ class _AdminAddEquipmentScreenState extends State<AdminAddEquipmentScreen> {
   final _serialController = TextEditingController();
   final _costController = TextEditingController();
   final _groupController = TextEditingController();
+  final _quantityController = TextEditingController(text: '1');
 
   String _equipmentType = 'Non-Critical';
   String _equipmentMode = 'Portable';
@@ -55,6 +56,7 @@ class _AdminAddEquipmentScreenState extends State<AdminAddEquipmentScreen> {
     _serialController.dispose();
     _costController.dispose();
     _groupController.dispose();
+    _quantityController.dispose();
     _equipmentNameFocusNode.dispose();
     super.dispose();
   }
@@ -180,35 +182,54 @@ class _AdminAddEquipmentScreenState extends State<AdminAddEquipmentScreen> {
 
       final equipmentProvider = Provider.of<EquipmentProvider>(context, listen: false);
       
-      final id = _idController.text.trim();
+      final startIdStr = _idController.text.trim();
+      final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
+      final startId = int.tryParse(startIdStr);
 
-      final newEquipment = Equipment(
-        id: id,
-        qrcode: id,
-        name: _selectedEquipment!,
-        group: _groupController.text.trim(),
-        manufacturer: _mfgController.text.trim(),
-        type: _equipmentType,
-        mode: _equipmentMode,
-        serialNo: _serialController.text.trim(),
-        department: _selectedDepartment ?? '',
-        installationDate: _installationDate ?? DateTime.now(),
-        status: _statusController.text.trim(),
-        service: _serviceStatus,
-        purchasedCost: double.tryParse(_costController.text.trim()) ?? 0.0,
-        hasWarranty: _hasWarranty,
-        warrantyUpto: _hasWarranty ? _warrantyUptoDate : null,
-        assignedEmployeeIds: _selectedEmployeeIds,
-        collegeId: _selectedCollege!.id,
-      );
+      if (startId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid ID format')));
+        return;
+      }
+
+      List<Equipment> equipmentsToAdd = [];
+      for (int i = 0; i < quantity; i++) {
+        final currentId = (startId + i).toString();
+        
+        // Basic check for existing ID in local state (optional but good)
+        if (equipmentProvider.equipments.any((e) => e.id == currentId)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Equipment with ID $currentId already exists')));
+          return;
+        }
+
+        equipmentsToAdd.add(Equipment(
+          id: currentId,
+          qrcode: currentId,
+          name: _selectedEquipment!,
+          group: _groupController.text.trim(),
+          manufacturer: _mfgController.text.trim(),
+          type: _equipmentType,
+          mode: _equipmentMode,
+          serialNo: _serialController.text.trim(),
+          department: _selectedDepartment ?? '',
+          installationDate: _installationDate ?? DateTime.now(),
+          status: _statusController.text.trim(),
+          service: _serviceStatus,
+          purchasedCost: double.tryParse(_costController.text.trim()) ?? 0.0,
+          hasWarranty: _hasWarranty,
+          warrantyUpto: _hasWarranty ? _warrantyUptoDate : null,
+          assignedEmployeeIds: _selectedEmployeeIds,
+          collegeId: _selectedCollege!.id,
+        ));
+      }
 
       try {
-        await equipmentProvider.addEquipment(newEquipment);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Equipment added successfully')));
+        await equipmentProvider.addMultipleEquipments(equipmentsToAdd);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$quantity equipment(s) added successfully')));
         _idController.clear();
         _mfgController.clear();
         _serialController.clear();
         _costController.clear();
+        _quantityController.text = '1';
         setState(() {
           _selectedEquipment = null;
           _selectedDepartment = null;
@@ -315,6 +336,18 @@ class _AdminAddEquipmentScreenState extends State<AdminAddEquipmentScreen> {
                   if (_selectedCollege != null && !v.startsWith(_selectedCollege!.collegeCode)) {
                     return 'Must start with college code ${_selectedCollege!.collegeCode}';
                   }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _quantityController,
+                decoration: const InputDecoration(labelText: 'Quantity', hintText: 'Enter number of equipments to add'),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Required';
+                  final q = int.tryParse(v);
+                  if (q == null || q <= 0) return 'Must be a positive number';
                   return null;
                 },
               ),

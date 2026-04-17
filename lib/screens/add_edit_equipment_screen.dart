@@ -36,6 +36,7 @@ class _AddEditEquipmentScreenState extends State<AddEditEquipmentScreen> {
 
   // Equipment Group with Autocomplete
   final _groupController = TextEditingController();
+  final _quantityController = TextEditingController(text: '1');
 
   String _equipmentType = 'Non-Critical';
   String _equipmentMode = 'Portable';
@@ -60,6 +61,7 @@ class _AddEditEquipmentScreenState extends State<AddEditEquipmentScreen> {
     _serialController.dispose();
     _costController.dispose();
     _groupController.dispose();
+    _quantityController.dispose();
     _equipmentNameFocusNode.dispose();
     super.dispose();
   }
@@ -238,38 +240,77 @@ class _AddEditEquipmentScreenState extends State<AddEditEquipmentScreen> {
 
   void _saveForm() {
     if (_formKey.currentState!.validate()) {
-      String id;
       if (widget.equipment != null) {
-        id = widget.equipment!.id;
-      } else {
-        // Generate a 7-digit ID: collegeCode (3 digits) + serial (4 digits)
-        final equipmentProvider = Provider.of<EquipmentProvider>(context, listen: false);
-        id = equipmentProvider.generateNextEquipmentId(_college?.collegeCode ?? '000');
+        // Editing existing equipment
+        final updatedEquipment = widget.equipment!.copyWith(
+          name: _selectedEquipment!,
+          group: _groupController.text.trim(),
+          manufacturer: _mfgController.text.trim(),
+          type: _equipmentType,
+          mode: _equipmentMode,
+          serialNo: _serialController.text.trim(),
+          department: _selectedDepartment ?? '',
+          installationDate: _installationDate ?? DateTime.now(),
+          status: _statusController.text.trim(),
+          service: _serviceStatus,
+          purchasedCost: double.tryParse(_costController.text.trim()) ?? 0.0,
+          hasWarranty: _hasWarranty,
+          warrantyUpto: _hasWarranty ? _warrantyUptoDate : null,
+          assignedEmployeeIds: _selectedEmployeeIds,
+          collegeId: _college!.id,
+        );
+        Navigator.of(context).pop(updatedEquipment);
+        return;
       }
+
+      // Adding new equipment(s)
+      final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
+      final equipmentProvider = Provider.of<EquipmentProvider>(context, listen: false);
       
-      String qrcode = widget.equipment?.qrcode ?? id; // For now, qrcode is same as id
+      List<Equipment> equipmentsToAdd = [];
+      String collegeCode = _college?.collegeCode ?? '000';
+      
+      for (int i = 0; i < quantity; i++) {
+        String nextId;
+        if (equipmentsToAdd.isEmpty) {
+          nextId = equipmentProvider.generateNextEquipmentId(collegeCode);
+        } else {
+          String lastId = equipmentsToAdd.last.id;
+          int lastSeq = int.parse(lastId.substring(3));
+          nextId = collegeCode + (lastSeq + 1).toString().padLeft(4, '0');
+        }
 
-      final newEquipment = Equipment(
-        id: id,
-        qrcode: qrcode,
-        name: _selectedEquipment!,
-        group: _groupController.text.trim(),
-        manufacturer: _mfgController.text.trim(),
-        type: _equipmentType,
-        mode: _equipmentMode,
-        serialNo: _serialController.text.trim(),
-        department: _selectedDepartment ?? '',
-        installationDate: _installationDate ?? DateTime.now(), // Default to now if not set
-        status: _statusController.text.trim(),
-        service: _serviceStatus,
-        purchasedCost: double.tryParse(_costController.text.trim()) ?? 0.0,
-        hasWarranty: _hasWarranty,
-        warrantyUpto: _hasWarranty ? _warrantyUptoDate : null,
-        assignedEmployeeIds: _selectedEmployeeIds, 
-        collegeId: _college!.id, // Assuming _college is not null at this point
-      );
+        // Check for collisions
+        if (equipmentProvider.equipments.any((e) => e.id == nextId)) {
+          int currentSeq = int.parse(nextId.substring(3));
+          while (equipmentProvider.equipments.any((e) => e.id == nextId)) {
+            currentSeq++;
+            nextId = collegeCode + currentSeq.toString().padLeft(4, '0');
+          }
+        }
 
-      Navigator.of(context).pop(newEquipment);
+        equipmentsToAdd.add(Equipment(
+          id: nextId,
+          qrcode: nextId,
+          name: _selectedEquipment!,
+          group: _groupController.text.trim(),
+          manufacturer: _mfgController.text.trim(),
+          type: _equipmentType,
+          mode: _equipmentMode,
+          serialNo: _serialController.text.trim(),
+          department: _selectedDepartment ?? '',
+          installationDate: _installationDate ?? DateTime.now(),
+          status: _statusController.text.trim(),
+          service: _serviceStatus,
+          purchasedCost: double.tryParse(_costController.text.trim()) ?? 0.0,
+          hasWarranty: _hasWarranty,
+          warrantyUpto: _hasWarranty ? _warrantyUptoDate : null,
+          assignedEmployeeIds: _selectedEmployeeIds,
+          collegeId: _college!.id,
+        ));
+      }
+
+      Navigator.of(context).pop(equipmentsToAdd);
     }
   }
 
@@ -404,11 +445,24 @@ class _AddEditEquipmentScreenState extends State<AddEditEquipmentScreen> {
                           ),
                         ),
                       ),
+                    },
+                    );
+                    },
                     ),
-                  );
-                },
-              ),
-              // Department dropdown from available departments
+                    if (widget.equipment == null)
+                    TextFormField(
+                    controller: _quantityController,
+                    decoration: const InputDecoration(labelText: 'Quantity', hintText: 'Enter number of equipments to add'),
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                    if (v == null || v.isEmpty) return 'Required';
+                    final q = int.tryParse(v);
+                    if (q == null || q <= 0) return 'Must be a positive number';
+                    return null;
+                    },
+                    ),
+                    // Department dropdown from available departments
+
               Consumer<DepartmentProvider>(
                 builder: (context, departmentProvider, _) {
                   // Always show all departments for the college

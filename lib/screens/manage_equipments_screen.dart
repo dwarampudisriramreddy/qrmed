@@ -49,6 +49,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
   final _warrantyController = TextEditingController();
   final _purchasedValueController = TextEditingController();
   final _verifiedByController = TextEditingController();
+  final _quantityController = TextEditingController(text: '1');
   final _equipmentNameFocusNode = FocusNode();
 
   final _formKey = GlobalKey<FormState>();
@@ -381,6 +382,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
     _warrantyController.dispose();
     _purchasedValueController.dispose();
     _verifiedByController.dispose();
+    _quantityController.dispose();
     _equipmentNameFocusNode.dispose();
     super.dispose();
   }
@@ -431,6 +433,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
     _warrantyController.clear();
     _purchasedValueController.clear();
     _verifiedByController.clear();
+    _quantityController.text = '1';
     _purchasedDate = null;
     _verifiedDate = null;
     _generatedId = '';
@@ -469,39 +472,89 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
                 onPressed: () async {
                   if (!_formKey.currentState!.validate()) return;
                   
-                  // Generate a 7-digit ID: collegeCode (3 digits) + serial (4 digits)
                   final equipmentProvider = Provider.of<EquipmentProvider>(context, listen: false);
                   final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
-                  final id = equipmentProvider.generateNextEquipmentId(_college?.collegeCode ?? '000');
                   
-                  final newEquipment = Equipment( // Changed from newProduct = Product
-                    id: id,
-                    qrcode: id, // For now, qrcode is same as id
-                    name: _selectedEquipment ?? _equipmentNameController.text.trim(),
-                    type: _equipmentTypeController.text.trim(),
-                    group: _equipmentGroupController.text.trim(),
-                    mode: _deviceTypeController.text.trim(),
-                    manufacturer: _manufacturerController.text.trim(),
-                    serialNo: _serialNoController.text.trim(),
-                    department: _selectedDepartment ?? '',
-                    status: _statusController.text.trim(),
-                    service: _serviceStatusController.text.trim(),
-                    warrantyUpto: _warrantyController.text.isNotEmpty ? DateTime.tryParse(_warrantyController.text) : null,
-                    purchasedCost: double.tryParse(_purchasedValueController.text) ?? 0.0,
-                    installationDate: _purchasedDate ?? DateTime.now(),
-                    assignedEmployeeIds: _selectedEmployeeIds,
-                    hasWarranty: _warrantyController.text.isNotEmpty,
-                    collegeId: widget.collegeName,
-                  );
-                  await equipmentProvider.addEquipment(newEquipment, notificationProvider: notificationProvider); // Changed from ProductProvider and addProduct
+                  final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
+                  
+                  List<Equipment> equipmentsToAdd = [];
+                  String collegeCode = _college?.collegeCode ?? '000';
+                  
+                  for (int i = 0; i < quantity; i++) {
+                    // We need to be careful with ID generation in a loop.
+                    // generateNextEquipmentId uses the current _equipments list.
+                    // To handle multiple in a loop correctly, we should get the next ID,
+                    // and for subsequent ones, increment it manually or update our local list.
+                    
+                    String nextId;
+                    if (equipmentsToAdd.isEmpty) {
+                      nextId = equipmentProvider.generateNextEquipmentId(collegeCode);
+                    } else {
+                      // Get the last added ID and increment it
+                      String lastId = equipmentsToAdd.last.id;
+                      int lastSeq = int.parse(lastId.substring(3));
+                      nextId = collegeCode + (lastSeq + 1).toString().padLeft(4, '0');
+                    }
+
+                    // Check for collisions with existing equipments not in our current batch
+                    if (equipmentProvider.equipments.any((e) => e.id == nextId)) {
+                      // This might happen if someone else added equipment or if there's a gap.
+                      // For simplicity, we can try to find the next available ID by incrementing until free.
+                      int currentSeq = int.parse(nextId.substring(3));
+                      while (equipmentProvider.equipments.any((e) => e.id == nextId)) {
+                        currentSeq++;
+                        nextId = collegeCode + currentSeq.toString().padLeft(4, '0');
+                      }
+                    }
+
+                    equipmentsToAdd.add(Equipment(
+                      id: nextId,
+                      qrcode: nextId,
+                      name: _selectedEquipment ?? _equipmentNameController.text.trim(),
+                      type: _equipmentTypeController.text.trim(),
+                      group: _equipmentGroupController.text.trim(),
+                      mode: _deviceTypeController.text.trim(),
+                      manufacturer: _manufacturerController.text.trim(),
+                      serialNo: _serialNoController.text.trim(),
+                      department: _selectedDepartment ?? '',
+                      status: _statusController.text.trim(),
+                      service: _serviceStatusController.text.trim(),
+                      warrantyUpto: _warrantyController.text.isNotEmpty ? DateTime.tryParse(_warrantyController.text) : null,
+                      purchasedCost: double.tryParse(_purchasedValueController.text) ?? 0.0,
+                      installationDate: _purchasedDate ?? DateTime.now(),
+                      assignedEmployeeIds: _selectedEmployeeIds,
+                      hasWarranty: _warrantyController.text.isNotEmpty,
+                      collegeId: widget.collegeName,
+                    ));
+                  }
+                  
+                  await equipmentProvider.addMultipleEquipments(equipmentsToAdd);
+                  
+                  // Optional: add notifications for "Not Working" items if needed.
+                  // (The original code only added one notification for addEquipment)
+                  if (notificationProvider != null) {
+                    for (var eq in equipmentsToAdd) {
+                      if (eq.status == 'Not Working') {
+                        await notificationProvider.addNotification(AppNotification(
+                          id: '',
+                          title: 'New Failure Reported',
+                          message: 'College ${eq.collegeId} added: ${eq.name} (ID: ${eq.id}) in ${eq.department} as Not Working.',
+                          timestamp: DateTime.now(),
+                          targetUserId: 'admin',
+                          equipmentId: eq.id,
+                        ));
+                      }
+                    }
+                  }
+
                   setState(() {});
                   Navigator.of(ctx).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Equipment added successfully.')), // Changed from Product added successfully
+                    SnackBar(content: Text('$quantity equipment(s) added successfully.')),
                   );
                 },
-            child: const Text('Add'),
-          ),
+                child: const Text('Add'),
+              ),
         ],
           );
         },
@@ -527,7 +580,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
             content: SizedBox(
               width: double.maxFinite,
               child: SingleChildScrollView(
-                child: _buildEquipmentForm(dialogSetState: setDialogState), // Changed from _buildProductForm
+                child: _buildEquipmentForm(dialogSetState: setDialogState, isEditing: true), // Changed from _buildProductForm
               ),
             ),
             actions: [
@@ -774,7 +827,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
     }
   }
 
-  Widget _buildEquipmentForm({StateSetter? dialogSetState}) { // Changed from _buildProductForm
+  Widget _buildEquipmentForm({StateSetter? dialogSetState, bool isEditing = false}) { // Changed from _buildProductForm
     return Form(
       key: _formKey,
       child: Column(
@@ -850,6 +903,18 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
               );
             },
           ),
+          if (!isEditing)
+            TextFormField(
+              controller: _quantityController,
+              decoration: const InputDecoration(labelText: 'Quantity', hintText: 'Enter number of equipments to add'),
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                final q = int.tryParse(v);
+                if (q == null || q <= 0) return 'Must be a positive number';
+                return null;
+              },
+            ),
           TextFormField(
             controller: _equipmentTypeController,
             decoration: const InputDecoration(labelText: 'Equipment Type'),
