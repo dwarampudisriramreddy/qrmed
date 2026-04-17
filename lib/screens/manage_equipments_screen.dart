@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' as io;
 import 'package:path_provider/path_provider.dart';
 import '../models/equipment.dart';
+import '../models/app_notification.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/employee_provider.dart';
 import '../models/college.dart';
