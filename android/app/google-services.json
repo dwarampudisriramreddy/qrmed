@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "909524036356",
+    "project_id": "supreme-institution",
+    "storage_bucket": "supreme-institution.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909524036356:android:c342551b9fb9f0c3873e51",
+        "android_client_info": {
+          "package_name": "com.ram.qrmed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDw21avwK5PuTSYd7rF_vk9Uq2zvLb9Ugg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

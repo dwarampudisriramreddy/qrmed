@@ -1,0 +1,170 @@
+================================================================================
+QRmed App Icon Fix - COMPLETE INSTRUCTIONS
+================================================================================
+
+PROBLEM:
+--------
+Your APK is showing the default Flutter icon instead of the QR code icon 
+displayed in the login screen.
+
+SOLUTION:
+---------
+Replace all Android launcher icons with a QR code-style icon matching the 
+login screen's Icons.qr_code_scanner.
+
+
+QUICK START (3 STEPS):
+======================
+
+STEP 1: Install Python Dependencies
+------------------------------------
+Open Command Prompt and run:
+  pip install Pillow
+
+STEP 2: Generate the Icons
+---------------------------
+In the QRmed project directory, run:
+  python quick_icon_gen.py
+
+OR use any of these alternatives:
+  python generate_app_icon.py
+  python generate_icons.bat
+
+STEP 3: Rebuild the APK
+-----------------------
+flutter clean
+flutter pub get
+flutter build apk --release
+
+Done! Your APK will now have the QR code icon.
+
+
+ICON GENERATOR SCRIPTS:
+=======================
+
+1. quick_icon_gen.py (RECOMMENDED)
+   - Simplest and fastest
+   - Works with or without PIL/Pillow
+   - Generates icons for all Android densities
+   
+2. generate_app_icon.py
+   - Full-featured with detailed output
+   - Requires PIL/Pillow
+   - Best quality icons
+   
+3. generate_icons.bat
+   - Windows batch wrapper
+   - Double-click to run
+   - Automatically finds Python
+
+
+FILES THAT WILL BE CREATED/UPDATED:
+===================================
+
+android/app/src/main/res/mipmap-mdpi/ic_launcher.png      (48x48)
+android/app/src/main/res/mipmap-hdpi/ic_launcher.png      (72x72)
+android/app/src/main/res/mipmap-xhdpi/ic_launcher.png     (96x96)
+android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png    (144x144)
+android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png   (192x192)
+
+
+ICON DESIGN:
+============
+- White background with blue QR pattern
+- Color: #2563EB (matches login screen gradient)
+- Three position detection patterns in corners (QR code style)
+- Center timing pattern
+- Blue border frame
+
+
+VERIFICATION:
+==============
+
+After building the APK:
+
+1. Check icon files exist:
+   dir android\app\src\main\res\mipmap-*\ic_launcher.png
+
+2. Install APK:
+   flutter install
+
+3. Check launcher icon:
+   - Should show QR code icon (blue on white)
+   - Should match login screen icon visually
+
+4. If still showing old icon:
+   - Uninstall app completely
+   - flutter clean
+   - flutter build apk --release
+   - flutter install
+
+
+TROUBLESHOOTING:
+=================
+
+Q: "ModuleNotFoundError: No module named 'PIL'"
+A: Install Pillow: pip install Pillow
+
+Q: Icon generation fails with permission error
+A: Run Command Prompt as Administrator
+
+Q: Old icon still showing after rebuild
+A: 
+   1. Uninstall app from device
+   2. Clear build: flutter clean
+   3. Rebuild: flutter build apk --release
+   4. Reinstall: flutter install
+
+Q: Icons look pixelated
+A: Ensure you're using the generated 192x192 mdpi icons
+
+
+TECHNICAL DETAILS:
+===================
+
+What Changed:
+- pubspec.yaml: Added flutter_launcher_icons configuration
+- android/app/src/main/res/mipmap-*/ic_launcher.png: All updated
+
+What Did NOT Change:
+- App functionality
+- App code
+- iOS or Web configuration (only Android)
+- AndroidManifest.xml (still references ic_launcher correctly)
+
+
+ROLLBACK:
+=========
+To revert to default Flutter icon:
+1. Restore original ic_launcher.png files from git
+2. Or run: flutter pub run flutter_launcher_icons:main
+
+
+NEXT STEPS:
+===========
+1. Run: python quick_icon_gen.py
+2. Run: flutter build apk --release
+3. Test the APK on device
+4. Verify icon matches login screen
+
+
+SUPPORT:
+========
+If issues persist:
+- Check Python is installed: python --version
+- Check Pillow is installed: python -c "from PIL import Image"
+- Check directory permissions
+- Review detailed output: python generate_app_icon.py
+
+
+FILES CREATED BY THIS FIX:
+==========================
+- APP_ICON_FIX.md (detailed documentation)
+- ICON_FIX_INSTRUCTIONS.txt (this file)
+- generate_app_icon.py (main icon generator)
+- quick_icon_gen.py (simplified version)
+- generate_icons.bat (Windows batch wrapper)
+- generate_icons.bat (Windows batch file)
+- simple_icon_decoder.py (alternative implementation)
+
+================================================================================

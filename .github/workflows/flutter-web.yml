@@ -1,0 +1,65 @@
+name: Flutter Web Build & Deploy to Netlify
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Git identity
+      - name: Set Git Identity
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      # 3️⃣ Install Flutter
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # 4️⃣ Install dependencies
+      - name: Install Dependencies
+        run: flutter pub get
+
+      # 5️⃣ Build Flutter Web
+      - name: Build Flutter Web
+        run: flutter build web --release --no-tree-shake-icons
+
+      # 6️⃣ Copy build to SAFE temporary storage
+      - name: Prepare deploy folder
+        run: |
+          if [ ! -d "build/web" ]; then
+            echo "❌ build/web not found!"
+            exit 1
+          fi
+
+          mkdir -p ${{ runner.temp }}/deploy
+          cp -r build/web/* ${{ runner.temp }}/deploy/
+
+          # Add Netlify SPA redirect
+          echo "/* /index.html 200" > ${{ runner.temp }}/deploy/_redirects
+
+      # 7️⃣ Deploy to netlify branch
+      - name: Deploy to Netlify branch
+        run: |
+          git fetch origin
+          git checkout -B netlify
+
+          # Remove everything except .git
+          find . -mindepth 1 -maxdepth 1 ! -name ".git" -exec rm -rf {} \;
+
+          # COPY FROM TEMP BACK TO REPO
+          cp -r ${{ runner.temp }}/deploy/* .
+
+          git add .
+          git commit -m "Netlify Deploy" || echo "No changes"
+          git push -f origin netlify

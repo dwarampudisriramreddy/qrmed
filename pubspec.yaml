@@ -1,0 +1,92 @@
+name: supreme_institution
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # CORE & UI
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  intl: ^0.19.0
+  http: ^1.2.1
+
+  # FIREBASE (Updated to modern versions)
+  firebase_core: ^3.1.0
+  firebase_auth: ^5.1.0
+  cloud_firestore: ^5.0.0
+  firebase_storage: ^12.0.0
+
+  # HARDWARE & NATIVE
+  image_picker: ^1.1.2
+  image_gallery_saver_plus: ^4.0.1
+  file_picker: ^8.0.3
+  mobile_scanner: ^5.1.0
+  file_saver: ^0.2.14
+  qr_flutter: ^4.1.0
+  barcode_widget: ^2.0.4
+  package_info_plus: ^8.0.0
+  url_launcher: ^6.2.0
+
+  # MAPS & LOCATION
+  flutter_map: ^7.0.0
+  latlong2: ^0.9.1
+  google_maps_flutter: ^2.6.1
+  google_places_api_flutter: ^2.0.0
+
+  # UTILITY
+  uuid: ^4.4.0
+  excel: ^4.0.2
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.5
+  english_words: ^4.0.0
+  archive: ^3.6.1
+  flutter_native_splash: ^2.4.4
+  flutter_local_notifications: 17.2.3
+  connectivity_plus: ^6.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/favicon.png
+    - assets/branding.png
+    - assets/supreme_logo_transparent.png
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  windows: true
+  web:
+    generate: true
+  image_path: "assets/app_icon.png"
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: "assets/supreme_logo_original.png"
+  branding: "assets/branding.png"
+  color_dark: "#ffffff"
+  image_dark: "assets/supreme_logo_original.png"
+  branding_dark: "assets/branding.png"
+  fullscreen: true
+  android: true
+  ios: true
+  web: true
+  android_12:
+    image: "assets/splash_icon_android_12.png"
+    branding: "assets/branding.png"
+    color: "#ffffff"
+    icon_background_color: "#ffffff"
+    image_dark: "assets/splash_icon_android_12.png"
+    branding_dark: "assets/branding.png"
+    color_dark: "#ffffff"
+    icon_background_color_dark: "#ffffff"
