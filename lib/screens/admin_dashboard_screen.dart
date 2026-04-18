@@ -75,7 +75,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   // Send update notification only if on Android
                   if (Theme.of(context).platform == TargetPlatform.android) {
                     // Play Store URL for the app
-                    const String playStoreUrl = 'market://details?id=com.supreme.qrmed'; // Replace with your actual package name
+                    const String playStoreUrl = 'market://details?id=com.ram.qrmed'; // Replace with your actual package name
                     
                     await NotificationService.showSystemNotification(
                       id: DateTime.now().millisecond, // Unique ID for notification
