@@ -11,14 +11,14 @@ class EmployeeHomeTab extends StatefulWidget {
   final String collegeName; // This seems to be collegeId based on previous context
   final String employeeId; // Renamed from employeeName
   final String? employeeRole;
-  final String? employeeDepartment;
+  final List<String> employeeDepartments;
 
   const EmployeeHomeTab({
     super.key,
     required this.collegeName,
     required this.employeeId, // Renamed from employeeName
     this.employeeRole,
-    this.employeeDepartment,
+    this.employeeDepartments = const [],
   });
 
   @override
@@ -57,10 +57,10 @@ class _EmployeeHomeTabState extends State<EmployeeHomeTab> {
     // Filtering data based on collegeId
     final collegeEquipments = equipmentProvider.equipments.where((e) => e.collegeId == widget.collegeName).toList();
     
-    // Filtering logic for "My Equipments" - HOD sees all in department
+    // Filtering logic for "My Equipments" - HOD sees all in departments they belong to
     final List<Equipment> myEquipments;
-    if (widget.employeeRole == 'HOD' && widget.employeeDepartment != null) {
-      myEquipments = collegeEquipments.where((e) => e.department == widget.employeeDepartment).toList();
+    if (widget.employeeRole == 'HOD' && widget.employeeDepartments.isNotEmpty) {
+      myEquipments = collegeEquipments.where((e) => widget.employeeDepartments.contains(e.department)).toList();
     } else {
       myEquipments = collegeEquipments.where((e) => e.assignedEmployeeId == widget.employeeId).toList();
     }

@@ -212,12 +212,11 @@ class _AddEditEquipmentScreenState extends State<AddEditEquipmentScreen> {
       if (departmentName != null) {
         // Auto-select HOD of the selected department
         final employeeProvider = Provider.of<EmployeeProvider>(context, listen: false);
-        final hods = employeeProvider.employees.where((emp) => 
-          emp.collegeId == _college?.id && 
-          emp.department == departmentName && 
+        final hods = employeeProvider.employees.where((emp) =>
+          emp.collegeId == _college?.id &&
+          emp.departments.contains(departmentName) &&
           emp.role == 'HOD'
         ).toList();
-        
         if (hods.isNotEmpty) {
           _selectedEmployeeIds = hods.map((h) => h.id).toList();
         }
@@ -733,7 +732,7 @@ class _AddEditEquipmentScreenState extends State<AddEditEquipmentScreen> {
                   // Filter employees by selected department
                   final departmentEmployees = hasDepartmentSelected
                       ? collegeEmployees
-                          .where((emp) => emp.department == _selectedDepartment)
+                          .where((emp) => emp.departments.contains(_selectedDepartment))
                           .toList()
                       : <Employee>[];
                   

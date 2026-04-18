@@ -5,14 +5,14 @@ class MyEquipmentsWidget extends StatelessWidget {
   final String employeeId;
   final String collegeName;
   final String? employeeRole;
-  final String? employeeDepartment;
+  final List<String> employeeDepartments;
 
   const MyEquipmentsWidget({
     super.key, 
     required this.employeeId, 
     required this.collegeName,
     this.employeeRole,
-    this.employeeDepartment,
+    this.employeeDepartments = const [],
   });
 
   @override
@@ -22,7 +22,7 @@ class MyEquipmentsWidget extends StatelessWidget {
       employeeId: employeeId, 
       collegeName: collegeName,
       employeeRole: employeeRole,
-      employeeDepartment: employeeDepartment,
+      employeeDepartments: employeeDepartments,
     );
   }
 }

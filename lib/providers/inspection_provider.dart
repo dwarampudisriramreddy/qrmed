@@ -116,15 +116,38 @@ class InspectionProvider with ChangeNotifier {
           requiredEmployees.forEach((role, requiredCount) {
             final actualCount = collegeEmployees
                 .where((emp) {
-                    if (emp.department == null) return false;
-                    String empDept = emp.department!.trim().toLowerCase();
-                    // Strip any (...) suffix if present
-                    if (empDept.contains('(') && empDept.endsWith(')')) {
-                      empDept = empDept.substring(0, empDept.lastIndexOf('(')).trim();
+                    // Check if employee is assigned to this department
+                    bool inDepartment = emp.departments.any((d) {
+                      String empDept = d.trim().toLowerCase();
+                      // Strip any (...) suffix if present
+                      if (empDept.contains('(') && empDept.endsWith(')')) {
+                        empDept = empDept.substring(0, empDept.lastIndexOf('(')).trim();
+                      }
+                      return empDept == departmentName.toLowerCase();
+                    });
+
+                    if (!inDepartment) return false;
+                    if (emp.role == null) return false;
+
+                    String empRole = emp.role!.trim().toLowerCase();
+                    String reqRole = role.trim().toLowerCase();
+
+                    // Flexible matching for simplified roles
+                    if (empRole == 'tutor') {
+                      // Tutor matches Lecturer or Tutor variants
+                      if (reqRole.contains('lecturer') || reqRole.contains('tutor')) {
+                        return true;
+                      }
                     }
-                    return empDept == departmentName.toLowerCase() &&
-                           emp.role != null &&
-                           emp.role!.trim().toLowerCase() == role.toLowerCase();
+                    
+                    if (empRole == 'principal') {
+                      // Principal matches Dean or Principal
+                      if (reqRole.contains('dean') || reqRole.contains('principal')) {
+                        return true;
+                      }
+                    }
+
+                    return empRole == reqRole;
                 })
                 .length;
             if (actualCount < requiredCount) {

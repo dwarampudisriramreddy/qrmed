@@ -223,4 +223,33 @@ class EquipmentProvider with ChangeNotifier {
       await fetchEquipments();
     }
   }
+
+  /// Automatically assigns an employee to ALL equipments in specified departments within their college.
+  Future<void> assignEquipmentsToEmployee(String collegeId, List<String> departments, String employeeId) async {
+    if (departments.isEmpty) return;
+
+    // Fetch all equipments for this college in the specified departments
+    final QuerySnapshot snapshot = await _equipmentCollection
+        .where('collegeId', isEqualTo: collegeId)
+        .where('department', whereIn: departments)
+        .get();
+
+    final WriteBatch batch = FirebaseFirestore.instance.batch();
+    bool updated = false;
+
+    for (DocumentSnapshot doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final assignedIds = List<String>.from(data['assignedEmployeeIds'] ?? []);
+      if (!assignedIds.contains(employeeId)) {
+        assignedIds.add(employeeId);
+        batch.update(doc.reference, {'assignedEmployeeIds': assignedIds});
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      await batch.commit();
+      await fetchEquipments();
+    }
+  }
 }

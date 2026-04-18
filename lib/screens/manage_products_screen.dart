@@ -293,7 +293,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
           ),
           TextFormField(
             controller: _deviceTypeController,
-            decoration: const InputDecoration(labelText: 'Device Type'),
+            decoration: const InputDecoration(labelText: 'Mode'),
           ),
           TextFormField(
             controller: _manufacturerController,
@@ -493,7 +493,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
           DetailRow(label: 'Name', value: p.equipmentName),
           DetailRow(label: 'Type', value: p.equipmentType),
           DetailRow(label: 'Group', value: p.equipmentGroup),
-          DetailRow(label: 'Device', value: p.deviceType),
+          DetailRow(label: 'Mode', value: p.deviceType),
           DetailRow(label: 'Manufacturer', value: p.manufacturer),
           DetailRow(label: 'Serial', value: p.serialNo),
           DetailRow(label: 'Department', value: p.department),

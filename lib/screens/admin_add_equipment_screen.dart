@@ -150,7 +150,7 @@ class _AdminAddEquipmentScreenState extends State<AdminAddEquipmentScreen> {
         final employeeProvider = Provider.of<EmployeeProvider>(context, listen: false);
         final hods = employeeProvider.employees.where((emp) => 
           emp.collegeId == _selectedCollege!.id && 
-          emp.department == departmentName && 
+          emp.departments.contains(departmentName) && 
           emp.role == 'HOD'
         ).toList();
         
@@ -497,9 +497,9 @@ class _AdminAddEquipmentScreenState extends State<AdminAddEquipmentScreen> {
               const SizedBox(height: 24),
               Consumer<EmployeeProvider>(
                 builder: (context, empProvider, _) {
-                  final employees = _selectedCollege == null 
+                  final employees = (_selectedCollege == null || _selectedDepartment == null)
                     ? <Employee>[] 
-                    : empProvider.employees.where((e) => e.collegeId == _selectedCollege!.id && e.department == _selectedDepartment).toList();
+                    : empProvider.employees.where((e) => e.collegeId == _selectedCollege!.id && e.departments.contains(_selectedDepartment)).toList();
                   
                   String displayText;
                   if (_selectedCollege == null || _selectedDepartment == null) {

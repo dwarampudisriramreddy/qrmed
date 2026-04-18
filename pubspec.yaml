@@ -37,7 +37,6 @@ dependencies:
   flutter_map: ^7.0.0
   latlong2: ^0.9.1
   google_maps_flutter: ^2.6.1
-  google_places_api_flutter: ^2.0.0
 
   # UTILITY
   uuid: ^4.4.0

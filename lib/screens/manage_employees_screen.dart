@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:excel/excel.dart' hide Border, TextSpan;
+import 'dart:io' as io;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
+import '../utils/web_download_stub.dart';
 import '../models/employee.dart';
 import '../providers/employee_provider.dart';
 import '../providers/department_provider.dart';
@@ -50,6 +57,87 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
     });
   }
 
+  Future<void> _exportEmployeesToExcel(List<Employee> employeesToExport) async {
+    try {
+      if (employeesToExport.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No employees to export.')),
+        );
+        return;
+      }
+      debugPrint('📊 [Excel Export] Exporting ${employeesToExport.length} employees.');
+
+      var excel = Excel.createExcel();
+      Sheet sheetObject = excel['Employees'];
+
+      // Add Heading at the top
+      final title = 'EMPLOYEE LIST REPORT - ${widget.collegeId.toUpperCase()}';
+      sheetObject.insertRowIterables([
+        TextCellValue(title),
+      ], 0);
+      
+      // Add a blank row for spacing
+      sheetObject.insertRowIterables([TextCellValue('')], 1);
+
+      // Add headers at row 2
+      List<String> headers = [
+        'ID', 'Name', 'Role', 'Department', 'Email', 'Phone', 'Password', 'College ID',
+      ];
+      sheetObject.insertRowIterables(headers.map((e) => TextCellValue(e)).toList(), 2);
+
+      // Add data rows starting from row 3
+      for (int i = 0; i < employeesToExport.length; i++) {
+        final employee = employeesToExport[i];
+        List<CellValue?> rowData = [
+          TextCellValue(employee.id),
+          TextCellValue(employee.name),
+          TextCellValue(employee.role ?? ''),
+          TextCellValue(employee.departments.join(', ')),
+          TextCellValue(employee.email ?? ''),
+          TextCellValue(employee.phone ?? ''),
+          TextCellValue(employee.password),
+          TextCellValue(employee.collegeId),
+        ];
+        sheetObject.insertRowIterables(rowData, i + 3);
+      }
+
+      List<int>? excelBytes = excel.encode();
+      if (excelBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to encode Excel file.')),
+        );
+        return;
+      }
+
+      final String fileName = 'employees_${widget.collegeId}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+
+      if (kIsWeb) {
+        downloadFileWeb(context, Uint8List.fromList(excelBytes), fileName);
+      } else {
+        String? outputFile = await FilePicker.platform.saveFile(
+          dialogTitle: 'Save Employees Excel File',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['xlsx'],
+        );
+
+        if (outputFile != null) {
+          final file = io.File(outputFile);
+          await file.writeAsBytes(excelBytes);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Employees exported successfully!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error exporting Excel: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final departmentProvider = Provider.of<DepartmentProvider>(context, listen: false);
@@ -69,7 +157,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
           (e.department?.toLowerCase().contains(query) ?? false);
       
       final matchesDept = _selectedDepartmentFilter == null || 
-          e.department == _selectedDepartmentFilter;
+          e.departments.contains(_selectedDepartmentFilter);
       
       return matchesQuery && matchesDept;
     }).toList();
@@ -148,6 +236,17 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                   icon: const Icon(Icons.refresh, size: 20),
                   tooltip: 'Refresh',
                   onPressed: _fetchEmployees,
+                ),
+                const VerticalDivider(width: 20, indent: 12, endIndent: 12),
+                IconButton(
+                  icon: const Icon(Icons.download, size: 20, color: Colors.blue),
+                  tooltip: 'Export to Excel',
+                  onPressed: () {
+                    final finalFilteredEmployees = filteredEmployees.where((e) {
+                      return _selectedRoleFilter == null || e.role == _selectedRoleFilter;
+                    }).toList();
+                    _exportEmployeesToExcel(finalFilteredEmployees);
+                  },
                 ),
               ],
             ),
@@ -304,13 +403,34 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                         ),
                       );
                       if (updatedEmployee != null) {
-                        await Provider.of<EmployeeProvider>(context, listen: false)
-                            .updateEmployee(e.id, updatedEmployee);
+                        // Check if bulk assignment is requested
+                        final bool shouldAssignAll = updatedEmployee.assignedEquipments.contains('ASSIGN_ALL_IN_DEPT');
+                        final cleanedEquipments = List<String>.from(updatedEmployee.assignedEquipments)..remove('ASSIGN_ALL_IN_DEPT');
                         
-                        // Auto-assign HOD to equipments if role is HOD
-                        if (updatedEmployee.role == 'HOD' && updatedEmployee.department != null) {
+                        final finalEmployee = Employee(
+                          id: updatedEmployee.id,
+                          name: updatedEmployee.name,
+                          password: updatedEmployee.password,
+                          collegeId: updatedEmployee.collegeId,
+                          role: updatedEmployee.role,
+                          departments: updatedEmployee.departments,
+                          email: updatedEmployee.email,
+                          phone: updatedEmployee.phone,
+                          assignedEquipments: cleanedEquipments,
+                        );
+
+                        await Provider.of<EmployeeProvider>(context, listen: false)
+                            .updateEmployee(e.id, finalEmployee);
+                        
+                        if (shouldAssignAll) {
                           await Provider.of<EquipmentProvider>(context, listen: false)
-                              .assignHODToDepartmentEquipments(widget.collegeId, updatedEmployee.department!, updatedEmployee.id);
+                              .assignEquipmentsToEmployee(widget.collegeId, finalEmployee.departments, finalEmployee.id);
+                        }
+
+                        // Auto-assign HOD to equipments if role is HOD
+                        if (finalEmployee.role == 'HOD' && finalEmployee.department != null) {
+                          await Provider.of<EquipmentProvider>(context, listen: false)
+                              .assignHODToDepartmentEquipments(widget.collegeId, finalEmployee.department!, finalEmployee.id);
                         }
 
                         await _fetchEmployees();
@@ -386,13 +506,34 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
             ),
           );
           if (newEmployee != null) {
+            // Check if bulk assignment is requested
+            final bool shouldAssignAll = newEmployee.assignedEquipments.contains('ASSIGN_ALL_IN_DEPT');
+            final cleanedEquipments = List<String>.from(newEmployee.assignedEquipments)..remove('ASSIGN_ALL_IN_DEPT');
+
+            final finalEmployee = Employee(
+              id: newEmployee.id,
+              name: newEmployee.name,
+              password: newEmployee.password,
+              collegeId: newEmployee.collegeId,
+              role: newEmployee.role,
+              departments: newEmployee.departments,
+              email: newEmployee.email,
+              phone: newEmployee.phone,
+              assignedEquipments: cleanedEquipments,
+            );
+
             await Provider.of<EmployeeProvider>(context, listen: false)
-                .addEmployee(newEmployee);
+                .addEmployee(finalEmployee);
             
-            // Auto-assign HOD to equipments if role is HOD
-            if (newEmployee.role == 'HOD' && newEmployee.department != null) {
+            if (shouldAssignAll) {
               await Provider.of<EquipmentProvider>(context, listen: false)
-                  .assignHODToDepartmentEquipments(widget.collegeId, newEmployee.department!, newEmployee.id);
+                  .assignEquipmentsToEmployee(widget.collegeId, finalEmployee.departments, finalEmployee.id);
+            }
+
+            // Auto-assign HOD to equipments if role is HOD
+            if (finalEmployee.role == 'HOD' && finalEmployee.department != null) {
+              await Provider.of<EquipmentProvider>(context, listen: false)
+                  .assignHODToDepartmentEquipments(widget.collegeId, finalEmployee.department!, finalEmployee.id);
             }
 
             await _fetchEmployees();

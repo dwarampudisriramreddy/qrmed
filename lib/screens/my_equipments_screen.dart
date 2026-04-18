@@ -18,14 +18,14 @@ class MyEquipmentsScreen extends StatefulWidget {
   final String employeeId;
   final String collegeName;
   final String? employeeRole;
-  final String? employeeDepartment;
+  final List<String> employeeDepartments;
 
   const MyEquipmentsScreen({
     super.key,
     required this.employeeId,
     required this.collegeName,
     this.employeeRole,
-    this.employeeDepartment,
+    this.employeeDepartments = const [],
   });
 
   @override
@@ -48,7 +48,7 @@ class _MyEquipmentsScreenState extends State<MyEquipmentsScreen> {
 
       // Add Heading at the top
       final title = widget.employeeRole == 'HOD' 
-          ? 'DEPARTMENTAL EQUIPMENT REPORT - ${widget.employeeDepartment?.toUpperCase()}'
+          ? 'DEPARTMENTAL EQUIPMENT REPORT - ${widget.employeeDepartments.join(', ').toUpperCase()}'
           : 'MY ASSIGNED EQUIPMENT REPORT - ${widget.employeeId.toUpperCase()}';
           
       sheetObject.insertRowIterables([
@@ -100,7 +100,7 @@ class _MyEquipmentsScreenState extends State<MyEquipmentsScreen> {
       }
 
       final String fileName = widget.employeeRole == 'HOD'
-          ? 'dept_equipments_${widget.employeeDepartment}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx'
+          ? 'dept_equipments_${widget.employeeDepartments.join('_')}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx'
           : 'my_equipments_${widget.employeeId}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
 
       if (kIsWeb) {
@@ -135,11 +135,11 @@ class _MyEquipmentsScreenState extends State<MyEquipmentsScreen> {
     final equipmentProvider = Provider.of<EquipmentProvider>(context);
     final allCollegeEquipments = equipmentProvider.equipments.where((e) => e.collegeId == widget.collegeName).toList();
     
-    // Filtering logic: HOD sees all equipment in their department. 
+    // Filtering logic: HOD sees all equipment in their departments. 
     // Others only see equipment explicitly assigned to them.
     final List<Equipment> myEquipments;
-    if (widget.employeeRole == 'HOD' && widget.employeeDepartment != null) {
-      myEquipments = allCollegeEquipments.where((e) => e.department == widget.employeeDepartment).toList();
+    if (widget.employeeRole == 'HOD' && widget.employeeDepartments.isNotEmpty) {
+      myEquipments = allCollegeEquipments.where((e) => widget.employeeDepartments.contains(e.department)).toList();
     } else {
       myEquipments = allCollegeEquipments.where((e) => e.assignedEmployeeIds != null && e.assignedEmployeeIds!.contains(widget.employeeId)).toList();
     }

@@ -410,7 +410,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
       final employeeProvider = Provider.of<EmployeeProvider>(context, listen: false);
       final hods = employeeProvider.employees.where((emp) => 
         emp.collegeId == widget.collegeName && 
-        emp.department == _selectedDepartment && 
+        emp.departments.contains(_selectedDepartment) && 
         emp.role == 'HOD'
       ).toList();
       
@@ -926,7 +926,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
           ),
           TextFormField(
             controller: _deviceTypeController,
-            decoration: const InputDecoration(labelText: 'Device Type'),
+            decoration: const InputDecoration(labelText: 'Mode'),
           ),
           TextFormField(
             controller: _manufacturerController,
@@ -1001,7 +1001,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
                     final employeeProvider = Provider.of<EmployeeProvider>(context, listen: false);
                     final hods = employeeProvider.employees.where((emp) => 
                       emp.collegeId == widget.collegeName && 
-                      emp.department == newValue && 
+                      emp.departments.contains(newValue) && 
                       emp.role == 'HOD'
                     ).toList();
                     if (hods.isNotEmpty) {
@@ -1100,7 +1100,7 @@ class _ManageEquipmentsScreenState extends State<ManageEquipmentsScreen> { // Ch
                   final selectedDept = _selectedDepartment ?? '';
                   final departmentEmployees = selectedDept.isNotEmpty
                       ? collegeEmployees
-                          .where((emp) => emp.department == selectedDept)
+                          .where((emp) => emp.departments.contains(selectedDept))
                           .toList()
                       : <Employee>[];
                   

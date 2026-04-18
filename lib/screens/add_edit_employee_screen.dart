@@ -31,21 +31,22 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
   List<String> _selectedDepartments = [];
   String? _selectedRole;
   bool _obscurePassword = true;
+  bool _assignAllEquipments = false;
 
   // Predefined roles based on college type, as per inspection data requirements.
   final Map<String, List<String>> _rolesByCollegeType = {
-    'Dental': [
-      'Principal / Dean',
+    'BDS': [
+      'Principal',
       'HOD',
       'Professor',
       'Reader',
       'Senior Lecturer',
-      'Lecturer / Tutor',
+      'Tutor',
       'Student',
       'Non-Teaching Staff',
     ],
     'MBBS': [
-      'Dean / Principal',
+      'Principal',
       'HOD',
       'Professor',
       'Associate Professor',
@@ -62,8 +63,13 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
   @override
   void initState() {
     super.initState();
-    // Determine available roles based on the college type passed to the screen.
-    _availableRoles = _rolesByCollegeType[widget.collegeType] ?? [];
+    // Normalize college type to match our map keys
+    String normalizedType = widget.collegeType.toUpperCase();
+    if (normalizedType == 'DENTAL') normalizedType = 'BDS';
+    if (normalizedType == 'MEDICAL') normalizedType = 'MBBS';
+
+    // Determine available roles based on the normalized college type.
+    _availableRoles = _rolesByCollegeType[normalizedType] ?? [];
 
     if (widget.employee != null) {
       _nameController.text = widget.employee!.name;
@@ -101,15 +107,23 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
     if (_formKey.currentState!.validate()) {
       final employeeId = widget.employee?.id ?? '${_nameController.text.trim().toLowerCase().replaceAll(' ', '.')}@${widget.collegeId}';
 
-      // For Principal/Dean roles, department is optional (can be null or empty)
-      final isPrincipalOrDean = _selectedRole != null && 
+      // For Principal roles, department is optional (can be null or empty)
+      final isPrincipal = _selectedRole != null && 
           (_selectedRole!.contains('Principal') || _selectedRole!.contains('Dean'));
 
-      if (!isPrincipalOrDean && _selectedDepartments.isEmpty) {
+      if (!isPrincipal && _selectedDepartments.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select at least one department.')),
         );
         return;
+      }
+
+      final List<String> assignedEquipments = List<String>.from(widget.employee?.assignedEquipments ?? []);
+      if (_assignAllEquipments) {
+        // Use a special marker to indicate bulk assignment
+        if (!assignedEquipments.contains('ASSIGN_ALL_IN_DEPT')) {
+          assignedEquipments.add('ASSIGN_ALL_IN_DEPT');
+        }
       }
 
       final newEmployee = Employee(
@@ -121,6 +135,7 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
         collegeId: widget.collegeId,
         role: _selectedRole!,
         departments: _selectedDepartments,
+        assignedEquipments: assignedEquipments,
       );
       Navigator.of(context).pop(newEmployee);
     }
@@ -138,7 +153,7 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
           : d.name;
     }).toSet().toList()..sort();
     
-    final isPrincipalOrDean = _selectedRole != null && 
+    final isPrincipal = _selectedRole != null && 
         (_selectedRole!.contains('Principal') || _selectedRole!.contains('Dean'));
 
     return Scaffold(
@@ -187,7 +202,7 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                isPrincipalOrDean ? 'Departments (Optional)' : 'Departments',
+                isPrincipal ? 'Departments (Optional)' : 'Departments',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
               ),
               const SizedBox(height: 8),
@@ -214,7 +229,7 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
                   }).toList(),
                 ),
               ),
-              if (!isPrincipalOrDean && _selectedDepartments.isEmpty)
+              if (!isPrincipal && _selectedDepartments.isEmpty)
                 const Padding(
                   padding: EdgeInsets.only(top: 8, left: 12),
                   child: Text(
@@ -222,6 +237,32 @@ class _AddEditEmployeeScreenState extends State<AddEditEmployeeScreen> {
                     style: TextStyle(color: Colors.red, fontSize: 12),
                   ),
                 ),
+              const SizedBox(height: 24),
+              // Option to assign all equipments in department
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: SwitchListTile(
+                  title: const Text(
+                    'Assign ALL equipments in selected departments',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.blue),
+                  ),
+                  subtitle: const Text(
+                    'Turning this on will automatically assign every equipment from the chosen departments to this employee.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  value: _assignAllEquipments,
+                  onChanged: (val) {
+                    setState(() {
+                      _assignAllEquipments = val;
+                    });
+                  },
+                  activeColor: Colors.blue,
+                ),
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
