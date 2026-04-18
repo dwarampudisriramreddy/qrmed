@@ -35,6 +35,7 @@ class _AdminMassStickersScreenState extends State<AdminMassStickersScreen> {
 
   final Map<String, GlobalKey> _stickerKeys = {};
   List<Equipment> _equipmentsToPrint = [];
+  Equipment? _currentEquipmentToRender;
 
   @override
   void initState() {
@@ -119,9 +120,12 @@ class _AdminMassStickersScreenState extends State<AdminMassStickersScreen> {
     });
 
     try {
-      // Precache the logo one more time just to be sure
+      // Precache both logos and wait for them to be ready
       if (mounted) {
-        await precacheImage(const AssetImage('assets/favicon.png'), context);
+        await Future.wait([
+          precacheImage(const AssetImage('assets/favicon.png'), context),
+          precacheImage(const AssetImage('assets/supreme_logo_transparent.png'), context),
+        ]);
       }
 
       final equipmentProvider =
@@ -166,32 +170,39 @@ class _AdminMassStickersScreenState extends State<AdminMassStickersScreen> {
 
       setState(() {
         _equipmentsToPrint = filtered;
-        _statusMessage = 'Generating ${filtered.length} stickers...';
+        _statusMessage = 'Starting generation...';
       });
 
-      // Increase delay to give Flutter enough time to render off-screen widgets
-      await Future.delayed(const Duration(milliseconds: 2000));
-
       final archive = Archive();
+      final stickerKey = const GlobalObjectKey('current_sticker');
 
       for (int i = 0; i < _equipmentsToPrint.length; i++) {
         final equipment = _equipmentsToPrint[i];
 
         setState(() {
-          _progress = (i + 1) / _equipmentsToPrint.length;
+          _currentEquipmentToRender = equipment;
+          _progress = (i) / _equipmentsToPrint.length;
           _statusMessage =
-              'Processing ${i + 1}/${_equipmentsToPrint.length}: ${equipment.id}';
+              'Generating ${i + 1}/${_equipmentsToPrint.length}: ${equipment.id}';
         });
 
-        final bytes = await _captureSticker(equipment.id);
+        // Give extra time for the single widget to mount and images to decode
+        await Future.delayed(const Duration(milliseconds: 600));
+
+        final bytes = await _captureStickerFromKey(stickerKey);
         if (bytes != null) {
           final filename =
               '${equipment.id}_${equipment.name.replaceAll(' ', '_')}.png';
           archive.addFile(ArchiveFile(filename, bytes.length, bytes));
+        } else {
+          debugPrint('⚠️ Failed to capture sticker for ${equipment.id}');
         }
       }
 
-      setState(() => _statusMessage = 'Creating ZIP file...');
+      setState(() {
+        _progress = 1.0;
+        _statusMessage = 'Creating ZIP file...';
+      });
 
       final zipEncoder = ZipEncoder();
       final zipBytes = zipEncoder.encode(archive);
@@ -214,6 +225,7 @@ class _AdminMassStickersScreenState extends State<AdminMassStickersScreen> {
         }
       }
     } catch (e) {
+      debugPrint('💥 Mass Sticker Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -224,37 +236,42 @@ class _AdminMassStickersScreenState extends State<AdminMassStickersScreen> {
         setState(() {
           _isGenerating = false;
           _equipmentsToPrint = [];
-          _stickerKeys.clear();
+          _currentEquipmentToRender = null;
         });
       }
     }
   }
 
-  Future<Uint8List?> _captureSticker(String id) async {
-    if (!_stickerKeys.containsKey(id)) return null;
-    final key = _stickerKeys[id]!;
-
-    for (int attempt = 0; attempt < 8; attempt++) {
+  Future<Uint8List?> _captureStickerFromKey(GlobalKey key) async {
+    for (int attempt = 0; attempt < 10; attempt++) {
       try {
-        if (key.currentContext == null) {
-          await Future.delayed(const Duration(milliseconds: 150));
-          continue;
-        }
         final boundary =
-            key.currentContext!.findRenderObject() as RenderRepaintBoundary?;
+            key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
         if (boundary == null || !boundary.hasSize) {
-          await Future.delayed(const Duration(milliseconds: 150));
+          await Future.delayed(const Duration(milliseconds: 200));
           continue;
         }
+
+        // Wait for next frame to ensure images are painted
+        await WidgetsBinding.instance.endOfFrame;
+        
         final image = await boundary.toImage(pixelRatio: 3.0);
         final byteData =
             await image.toByteData(format: ui.ImageByteFormat.png);
-        return byteData?.buffer.asUint8List();
-      } catch (_) {
-        await Future.delayed(const Duration(milliseconds: 150));
+        
+        if (byteData != null) {
+          return byteData.buffer.asUint8List();
+        }
+      } catch (e) {
+        debugPrint('Attempt $attempt to capture sticker failed: $e');
+        await Future.delayed(const Duration(milliseconds: 200));
       }
     }
     return null;
+  }
+
+  Future<Uint8List?> _captureSticker(String id) async {
+    return _captureStickerFromKey(const GlobalObjectKey('current_sticker'));
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -371,20 +388,14 @@ class _AdminMassStickersScreenState extends State<AdminMassStickersScreen> {
             ),
           ),
 
-          // ── Off-screen sticker rendering ─────────────────────────
-          if (_equipmentsToPrint.isNotEmpty)
+          // ── Off-screen sticker rendering (ONE AT A TIME) ────────
+          if (_currentEquipmentToRender != null)
             Positioned(
               left: -9999,
               top: -9999,
-              child: Column(
-                children: _equipmentsToPrint.map((e) {
-                  final key =
-                      _stickerKeys.putIfAbsent(e.id, () => GlobalKey());
-                  return RepaintBoundary(
-                    key: key,
-                    child: _buildStickerWidget(e),
-                  );
-                }).toList(),
+              child: RepaintBoundary(
+                key: const GlobalObjectKey('current_sticker'),
+                child: _buildStickerWidget(_currentEquipmentToRender!),
               ),
             ),
         ],
